@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coding Sandbox</title>
+
+    <!-- CSS Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+    <style>
+        .ace_editor { font-family: 'JetBrains Mono', monospace !important; }
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-300 h-screen w-screen overflow-hidden">
+
+    <div
+        x-data="sandboxApp()"
+        x-cloak
+        @mousemove.window="handleDrag"
+        @mouseup.window="stopDrag"
+        class="flex flex-col h-full w-full"
+    >
+
+        <!-- ========================================== -->
+        <!-- TOOLBAR                                     -->
+        <!-- ========================================== -->
+        <header class="h-14 bg-gray-800 border-b border-gray-700 flex items-center justify-between px-4 shrink-0">
+            <!-- Left: Title & Status -->
+            <div class="flex items-center gap-4">
+                <div class="font-bold text-white tracking-wide flex items-center">
+                    <i class="ri-code-s-slash-line text-blue-500 mr-1"></i>Coding<span class="text-blue-500">Sandbox</span>
+                </div>
+
+                <div class="h-4 w-px bg-gray-600"></div>
+
+                <!-- File Name -->
+                <div class="flex items-center gap-2">
+                    <input
+                        x-model="fileName"
+                        @change="markUnsaved"
+                        class="bg-transparent text-sm text-gray-300 border-b border-transparent hover:border-gray-600 focus:border-blue-500 focus:outline-none px-1 py-0.5 w-40 transition-colors"
+                        placeholder="untitled.html"
+                    >
+                    <span class="text-[10px] text-gray-500 font-mono">.html</span>
+                </div>
+
+                <div class="h-4 w-px bg-gray-600 hidden md:block"></div>
+
+                <!-- Status Dot -->
+                <div class="hidden md:flex items-center gap-2 text-xs font-mono bg-gray-900 px-3 py-1 rounded border border-gray-700">
+                    <span class="w-2 h-2 rounded-full"
+                          :class="{
+                              'bg-green-500': status === 'saved',
+                              'bg-yellow-500': status === 'unsaved',
+                              'bg-gray-500': status === 'ready'
+                          }"></span>
+                    <span x-text="statusLabel"></span>
+                </div>
+            </div>
+
+            <!-- Right: Actions -->
+            <div class="flex items-center gap-3">
+                <button @click="togglePreview"
+                        class="p-2 hover:text-white transition-colors"
+                        :class="showPreview ? 'text-blue-400' : 'text-gray-400'"
+                        title="Toggle Preview">
+                    <i class="ri-layout-column-line text-lg"></i>
+                </button>
+
+                <div class="h-4 w-px bg-gray-600"></div>
+
+                <!-- Reset Button -->
+                <button @click="resetToDefault"
+                        class="px-4 py-1.5 text-sm bg-red-700 hover:bg-red-600 text-white rounded transition-colors flex items-center gap-2"
+                        title="Reset to default template">
+                    <i class="ri-refresh-line"></i> Reset
+                </button>
+
+                <!-- Save to Browser -->
+                <button @click="saveToBrowser"
+                        class="px-4 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors flex items-center gap-2"
+                        title="Save to browser storage">
+                    <i class="ri-save-line"></i> Save
+                </button>
+
+                <!-- Download -->
+                <button @click="downloadFile"
+                        class="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"
+                        title="Download as HTML file">
+                    <i class="ri-download-2-line"></i> Download
+                </button>
+            </div>
+        </header>
+
+        <!-- ========================================== -->
+        <!-- WORKSPACE                                   -->
+        <!-- ========================================== -->
+        <main x-ref="workspaceContainer" class="flex-1 flex overflow-hidden relative">
+            <!-- Editor Panel -->
+            <div class="relative flex flex-col bg-gray-900" :style="`width: ${showPreview ? leftWidth : 100}%`">
+                <div x-ref="mainEditor" class="absolute inset-0 w-full h-full"></div>
+            </div>
+
+            <!-- Drag Handle -->
+            <div x-show="showPreview"
+                 @mousedown="startDrag($event)"
+                 class="w-1 bg-gray-800 hover:bg-blue-500 cursor-col-resize z-50 flex items-center justify-center transition-colors group">
+            </div>
+
+            <!-- Preview Panel -->
+            <div x-show="showPreview" class="flex-1 relative bg-white">
+                <div x-show="dragActive" class="absolute inset-0 z-50 bg-transparent cursor-col-resize"></div>
+                <iframe x-ref="previewFrame" class="w-full h-full border-0"></iframe>
+            </div>
+        </main>
+
+        <!-- ========================================== -->
+        <!-- TOAST NOTIFICATIONS                        -->
+        <!-- ========================================== -->
+        <div class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+            <template x-for="note in notifications" :key="note.id">
+                <div x-show="note.show" x-transition.opacity.duration.300ms
+                    class="bg-gray-800 text-white px-4 py-3 rounded shadow-xl border-l-4 pointer-events-auto text-sm"
+                    :class="{
+                        'border-green-500': note.type === 'success',
+                        'border-red-500': note.type === 'error',
+                        'border-yellow-500': note.type === 'warning'
+                    }">
+                    <span x-text="note.message"></span>
+                </div>
+            </template>
+        </div>
+
+    </div>
+
+    <!-- ========================================== -->
+    <!-- APPLICATION LOGIC                          -->
+    <!-- ========================================== -->
+    <script type="module">
+        import Alpine from 'https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/module.esm.js';
+        import ace from 'https://esm.sh/ace-builds@1.32.7/src-min-noconflict/ace';
+
+        const ACE_CDN = "https://cdn.jsdelivr.net/npm/ace-builds@1.32.7/src-min-noconflict/";
+        ace.config.set('basePath', ACE_CDN);
+        ace.config.set('modePath', ACE_CDN);
+        ace.config.set('themePath', ACE_CDN);
+        ace.config.set('workerPath', ACE_CDN);
+
+        // --- STORAGE KEY ---
+        const STORAGE_KEY = 'sandbox_code';
+        const NAME_KEY = 'sandbox_filename';
+
+        const DEFAULT_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My Page</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 700px;
+      margin: 40px auto;
+      padding: 0 20px;
+      background: #1a1a2e;
+      color: #e0e0e0;
+    }
+    h1 { color: #7ec8e3; }
+    .card {
+      background: #16213e;
+      border: 1px solid #0f3460;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 12px 0;
+      overflow: hidden;
+    }
+    .card img {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+      float: right;
+    }
+    .card h2 {
+      margin: 0 0 6px 0;
+      color: #e94560;
+    }
+    .card p {
+      margin: 0 0 10px 0;
+      color: #ccc;
+      font-size: 14px;
+    }
+    .badge {
+      display: inline-block;
+      background: #0f3460;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 12px;
+      margin-right: 4px;
+      color: #7ec8e3;
+    }
+  </style>
+</head>
+<body>
+  <h1>✨ Welcome to Coding Sandbox!</h1>
+  <p>Edit the HTML on the left, preview on the right.</p>
+  <p><strong>Save</strong> stores your work in the browser.<br>
+  <strong>Download</strong> gets you a .html file!</p>
+
+  <div class="card">
+    <h2>🎨 HTML</h2>
+    <p>Structure your page with semantic elements.</p>
+    <span class="badge">tags</span>
+    <span class="badge">attributes</span>
+  </div>
+
+  <div class="card">
+    <h2>🎯 CSS</h2>
+    <p>Style everything inside the <style> tag!</p>
+    <span class="badge">colors</span>
+    <span class="badge">layout</span>
+  </div>
+
+  <div class="card">
+    <h2>⚡ JavaScript</h2>
+    <p>Add interactivity with <script> tags.</p>
+    <span class="badge">DOM</span>
+    <span class="badge">events</span>
+  </div>
+</body>
+</html>`;
+
+        document.addEventListener('alpine:init', () => {
+
+            Alpine.data('sandboxApp', () => ({
+                // --- STATE ---
+                status: 'ready',        // 'ready' | 'unsaved' | 'saved'
+                showPreview: true,
+                leftWidth: 50,
+                dragActive: false,
+                fileName: 'untitled',
+                editor: null,
+                previewTimeout: null,
+                notifications: [],
+
+                get statusLabel() {
+                    return {
+                        'ready': 'Ready',
+                        'unsaved': 'Unsaved changes',
+                        'saved': 'Saved to browser'
+                    }[this.status];
+                },
+
+                // --- INIT ---
+                init() {
+                    // Load saved file name
+                    const savedName = localStorage.getItem(NAME_KEY);
+                    if (savedName) this.fileName = savedName;
+
+                    // Go directly to editor
+                    this.$nextTick(() => this.initEditor());
+                },
+
+                // --- NOTIFICATION HELPER ---
+                notify(type, message) {
+                    const id = Date.now();
+                    this.notifications.push({ id, type, message, show: true });
+                    setTimeout(() => {
+                        const idx = this.notifications.findIndex(n => n.id === id);
+                        if (idx !== -1) this.notifications[idx].show = false;
+                        setTimeout(() => {
+                            this.notifications = this.notifications.filter(n => n.id !== id);
+                        }, 300);
+                    }, 3000);
+                },
+
+                // --- EDITOR ---
+                initEditor() {
+                    this.editor = ace.edit(this.$refs.mainEditor);
+                    this.editor.setTheme("ace/theme/tomorrow_night_eighties");
+                    this.editor.session.setMode("ace/mode/html");
+                    this.editor.setShowPrintMargin(false);
+                    this.editor.setOptions({
+                        fontSize: "14px",
+                        fontFamily: "'JetBrains Mono', monospace",
+                        useSoftTabs: true,
+                        tabSize: 2,
+                        showLineNumbers: true,
+                    });
+
+                    // Load saved code or default
+                    const savedCode = localStorage.getItem(STORAGE_KEY);
+                    this.editor.setValue(savedCode || DEFAULT_HTML, -1);
+                    if (savedCode) this.status = 'saved';
+
+                    // Track changes
+                    this.editor.session.on('change', () => {
+                        clearTimeout(this.previewTimeout);
+                        this.previewTimeout = setTimeout(() => this.updatePreview(), 300);
+                        this.markUnsaved();
+                    });
+
+                    // Resize observer
+                    new ResizeObserver(() => {
+                        if (this.editor) this.editor.resize();
+                    }).observe(this.$refs.workspaceContainer);
+
+                    this.updatePreview();
+                },
+
+                markUnsaved() {
+                    if (this.status !== 'unsaved') this.status = 'unsaved';
+                },
+
+                updatePreview() {
+                    if (this.$refs.previewFrame && this.editor) {
+                        this.$refs.previewFrame.srcdoc = this.editor.getValue();
+                    }
+                },
+
+                // --- SAVE TO BROWSER ---
+                saveToBrowser() {
+                    if (!this.editor) return;
+
+                    const code = this.editor.getValue();
+                    localStorage.setItem(STORAGE_KEY, code);
+                    localStorage.setItem(NAME_KEY, this.fileName);
+                    this.status = 'saved';
+
+                    const size = new Blob([code]).size;
+                    const sizeStr = size < 1024
+                        ? `${size} B`
+                        : size < 1048576
+                            ? `${(size / 1024).toFixed(1)} KB`
+                            : `${(size / 1048576).toFixed(1)} MB`;
+
+                    this.notify('success', `💾 Saved to browser storage! (${sizeStr})`);
+                },
+
+                // --- DOWNLOAD ---
+                downloadFile() {
+                    if (!this.editor) return;
+
+                    // Auto-save before download
+                    const code = this.editor.getValue();
+                    localStorage.setItem(STORAGE_KEY, code);
+                    localStorage.setItem(NAME_KEY, this.fileName);
+                    this.status = 'saved';
+
+                    const filename = `${this.fileName || 'untitled'}.html`;
+                    const blob = new Blob([code], { type: 'text/html' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    this.notify('success', `📥 Downloaded: ${filename}`);
+                },
+
+                // --- RESET ---
+                resetToDefault() {
+                    if (!confirm("⚠️ Reset to default template? All unsaved changes will be lost!")) return;
+
+                    this.editor.setValue(DEFAULT_HTML, -1);
+                    this.updatePreview();
+                    this.status = 'unsaved';
+                    this.notify('warning', '🔄 Reset to default template. Save or Download to keep changes!');
+                },
+
+                // --- PREVIEW TOGGLE ---
+                togglePreview() {
+                    this.showPreview = !this.showPreview;
+                    if (this.showPreview && this.leftWidth > 90) this.leftWidth = 50;
+                    if (this.editor) {
+                        this.$nextTick(() => this.editor.resize());
+                    }
+                },
+
+                // --- DRAG ---
+                startDrag(e) {
+                    this.dragActive = true;
+                    document.body.style.cursor = 'col-resize';
+                    e.preventDefault();
+                },
+
+                stopDrag() {
+                    this.dragActive = false;
+                    document.body.style.cursor = 'default';
+                },
+
+                handleDrag(e) {
+                    if (!this.dragActive) return;
+                    const containerRect = this.$refs.workspaceContainer.getBoundingClientRect();
+                    let newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+                    if (newWidth < 10) newWidth = 10;
+                    if (newWidth > 90) newWidth = 90;
+                    this.leftWidth = newWidth;
+                    if (this.editor) this.editor.resize();
+                }
+            }));
+        });
+
+        Alpine.start();
+    </script>
+</body>
+</html>
