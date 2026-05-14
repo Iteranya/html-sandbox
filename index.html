@@ -4,11 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Coding Sandbox</title>
-
-    <!-- CSS Dependencies -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
-
     <style>
         .ace_editor { font-family: 'JetBrains Mono', monospace !important; }
         [x-cloak] { display: none !important; }
@@ -26,10 +23,7 @@
         @drop.prevent="handleDrop($event)"
         class="flex flex-col h-full w-full relative"
     >
-
-        <!-- ========================================== -->
-        <!-- DRAG-AND-DROP OVERLAY                      -->
-        <!-- ========================================== -->
+        <!-- DRAG OVERLAY -->
         <div x-show="dragOver" x-transition.opacity.duration.150ms
              class="absolute inset-0 z-[100] bg-blue-500/20 border-4 border-dashed border-blue-400 flex items-center justify-center pointer-events-none">
             <div class="bg-gray-900/90 px-8 py-6 rounded-2xl shadow-2xl text-center">
@@ -38,137 +32,77 @@
             </div>
         </div>
 
-        <!-- ========================================== -->
-        <!-- TOOLBAR                                     -->
-        <!-- ========================================== -->
+        <!-- TOOLBAR -->
         <header class="h-14 bg-gray-800 border-b border-gray-700 flex items-center justify-between px-4 shrink-0 z-50">
-            <!-- Left: Title & Status -->
             <div class="flex items-center gap-4">
                 <div class="font-bold text-white tracking-wide flex items-center">
                     <i class="ri-code-s-slash-line text-blue-500 mr-1"></i>Coding<span class="text-blue-500">Sandbox</span>
                 </div>
-
                 <div class="h-4 w-px bg-gray-600"></div>
-
-                <!-- File Name -->
                 <div class="flex items-center gap-2">
-                    <input
-                        x-model="fileName"
-                        @change="markUnsaved()"
+                    <input x-model="fileName" @change="markUnsaved()"
                         class="bg-transparent text-sm text-gray-300 border-b border-transparent hover:border-gray-600 focus:border-blue-500 focus:outline-none px-1 py-0.5 w-40 transition-colors"
-                        placeholder="untitled.html"
-                    >
+                        placeholder="untitled.html">
                     <span class="text-[10px] text-gray-500 font-mono">.html</span>
                 </div>
-
                 <div class="h-4 w-px bg-gray-600 hidden md:block"></div>
-
-                <!-- Status Dot -->
                 <div class="hidden md:flex items-center gap-2 text-xs font-mono bg-gray-900 px-3 py-1 rounded border border-gray-700">
                     <span class="w-2 h-2 rounded-full"
-                          :class="{
-                              'bg-green-500': status === 'saved',
-                              'bg-yellow-500': status === 'unsaved',
-                              'bg-gray-500': status === 'ready'
-                          }"></span>
+                        :class="{'bg-green-500': status==='saved','bg-yellow-500': status==='unsaved','bg-gray-500': status==='ready'}"></span>
                     <span x-text="statusLabel"></span>
                 </div>
             </div>
-
-            <!-- Right: Actions -->
             <div class="flex items-center gap-3">
-                <button @click="togglePreview"
-                        class="p-2 hover:text-white transition-colors"
-                        :class="showPreview ? 'text-blue-400' : 'text-gray-400'"
-                        title="Toggle Preview">
+                <button @click="togglePreview" class="p-2 hover:text-white transition-colors"
+                    :class="showPreview ? 'text-blue-400' : 'text-gray-400'" title="Toggle Preview">
                     <i class="ri-layout-column-line text-lg"></i>
                 </button>
-
                 <div class="h-4 w-px bg-gray-600"></div>
-
-                <!-- Import Button -->
                 <button @click="$refs.fileInput.click()"
-                        class="px-4 py-1.5 text-sm bg-emerald-700 hover:bg-emerald-600 text-white rounded transition-colors flex items-center gap-2"
-                        title="Import HTML file">
+                    class="px-4 py-1.5 text-sm bg-emerald-700 hover:bg-emerald-600 text-white rounded transition-colors flex items-center gap-2">
                     <i class="ri-file-upload-line"></i> Import
                 </button>
-
-                <!-- Reset Button -->
                 <button @click="resetToDefault"
-                        class="px-4 py-1.5 text-sm bg-red-700 hover:bg-red-600 text-white rounded transition-colors flex items-center gap-2"
-                        title="Reset to default template">
+                    class="px-4 py-1.5 text-sm bg-red-700 hover:bg-red-600 text-white rounded transition-colors flex items-center gap-2">
                     <i class="ri-refresh-line"></i> Reset
                 </button>
-
-                <!-- Save to Browser -->
                 <button @click="saveToBrowser"
-                        class="px-4 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors flex items-center gap-2"
-                        title="Save to browser storage">
+                    class="px-4 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors flex items-center gap-2">
                     <i class="ri-save-line"></i> Save
                 </button>
-
-                <!-- Download -->
                 <button @click="downloadFile"
-                        class="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2"
-                        title="Download as HTML file">
+                    class="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors shadow-lg shadow-blue-900/20 flex items-center gap-2">
                     <i class="ri-download-2-line"></i> Download
                 </button>
             </div>
-
-            <!-- Hidden File Input for Import -->
-            <input
-                x-ref="fileInput"
-                type="file"
-                accept=".html,.htm,text/html"
-                class="hidden"
-                @change="handleFileImport($event)"
-            >
+            <input x-ref="fileInput" type="file" accept=".html,.htm,text/html" class="hidden" @change="handleFileImport($event)">
         </header>
 
-        <!-- ========================================== -->
-        <!-- WORKSPACE                                   -->
-        <!-- ========================================== -->
+        <!-- WORKSPACE -->
         <main x-ref="workspaceContainer" class="flex-1 flex overflow-hidden relative">
-            <!-- Editor Panel -->
             <div class="relative flex flex-col bg-gray-900" :style="`width: ${showPreview ? leftWidth : 100}%`">
                 <div x-ref="mainEditor" class="absolute inset-0 w-full h-full"></div>
             </div>
-
-            <!-- Drag Handle -->
-            <div x-show="showPreview"
-                 @mousedown="startDrag($event)"
-                 class="w-1 bg-gray-800 hover:bg-blue-500 cursor-col-resize z-50 flex items-center justify-center transition-colors group">
-            </div>
-
-            <!-- Preview Panel -->
+            <div x-show="showPreview" @mousedown="startDrag($event)"
+                class="w-1 bg-gray-800 hover:bg-blue-500 cursor-col-resize z-50 flex items-center justify-center transition-colors group"></div>
             <div x-show="showPreview" class="flex-1 relative bg-white">
                 <div x-show="dragActive" class="absolute inset-0 z-50 bg-transparent cursor-col-resize"></div>
                 <iframe x-ref="previewFrame" class="w-full h-full border-0"></iframe>
             </div>
         </main>
 
-        <!-- ========================================== -->
-        <!-- TOAST NOTIFICATIONS                        -->
-        <!-- ========================================== -->
+        <!-- TOASTS -->
         <div class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
             <template x-for="note in notifications" :key="note.id">
                 <div x-show="note.show" x-transition.opacity.duration.300ms
                     class="bg-gray-800 text-white px-4 py-3 rounded shadow-xl border-l-4 pointer-events-auto text-sm max-w-sm"
-                    :class="{
-                        'border-green-500': note.type === 'success',
-                        'border-red-500': note.type === 'error',
-                        'border-yellow-500': note.type === 'warning'
-                    }">
+                    :class="{'border-green-500': note.type==='success','border-red-500': note.type==='error','border-yellow-500': note.type==='warning'}">
                     <span x-text="note.message"></span>
                 </div>
             </template>
         </div>
-
     </div>
 
-    <!-- ========================================== -->
-    <!-- APPLICATION LOGIC                          -->
-    <!-- ========================================== -->
     <script type="module">
         import Alpine from 'https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/module.esm.js';
         import ace from 'https://esm.sh/ace-builds@1.32.7/src-min-noconflict/ace';
@@ -179,639 +113,31 @@
         ace.config.set('themePath', ACE_CDN);
         ace.config.set('workerPath', ACE_CDN);
 
-        // --- STORAGE KEYS ---
         const STORAGE_KEY = 'sandbox_code';
         const NAME_KEY = 'sandbox_filename';
+        const TEMPLATE_PATH = './showcase.html';
 
-        const DEFAULT_HTML = `<!DOCTYPE html>
+        const FALLBACK_HTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Showcase of every vanilla HTML element">
-  <meta name="author" content="Senpai & Monika">
-  <title>🔰 Vanilla HTML Feature Showcase — May 14, 2026</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔰</text></svg>">
-
-  <!-- External CSS (linked stylesheet) -->
+  <title>My Page</title>
   <style>
-    /* ── Reset & Base ── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
-    body {
-      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-      background: #0d1117; color: #c9d1d9; line-height: 1.6;
-      max-width: 900px; margin: 0 auto; padding: 20px;
-    }
-
-    /* ── Headers ── */
-    h1, h2, h3, h4, h5, h6 { color: #f0f6fc; margin-top: 1.5em; margin-bottom: 0.5em; }
-    h1 { font-size: 2.2rem; border-bottom: 2px solid #30363d; padding-bottom: 0.3em; }
-    h2 { font-size: 1.7rem; border-bottom: 1px solid #21262d; padding-bottom: 0.2em; }
-    h3 { font-size: 1.3rem; color: #58a6ff; }
-
-    /* ── Sections ── */
-    section { margin: 40px 0; padding: 20px; border: 1px solid #21262d; border-radius: 8px; background: #161b22; }
-    section h2 { margin-top: 0; }
-
-    /* ── Text ── */
-    p { margin: 0.8em 0; }
-    a { color: #58a6ff; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    a:visited { color: #bc8cff; }
-
-    /* ── Lists ── */
-    ul, ol { padding-left: 2em; margin: 0.8em 0; }
-    dl { margin: 0.8em 0; }
-    dt { font-weight: bold; color: #f0f6fc; margin-top: 0.6em; }
-    dd { margin-left: 1.5em; color: #8b949e; }
-
-    /* ── Table ── */
-    table { width: 100%; border-collapse: collapse; margin: 1em 0; }
-    caption { color: #8b949e; font-style: italic; margin-bottom: 0.5em; }
-    th, td { border: 1px solid #30363d; padding: 10px 14px; text-align: left; }
-    th { background: #21262d; color: #f0f6fc; font-weight: 600; }
-    tbody tr:hover { background: #1c2128; }
-    tfoot td { font-style: italic; color: #8b949e; }
-
-    /* ── Forms ── */
-    fieldset { border: 1px solid #30363d; border-radius: 6px; padding: 16px; margin: 1em 0; }
-    legend { color: #58a6ff; font-weight: bold; padding: 0 8px; }
-    label { display: block; margin: 10px 0 4px; font-size: 0.9rem; color: #c9d1d9; }
-    input, select, textarea, button {
-      background: #0d1117; color: #c9d1d9; border: 1px solid #30363d;
-      border-radius: 6px; padding: 8px 12px; font-size: 0.95rem; font-family: inherit;
-    }
-    input:focus, select:focus, textarea:focus, button:focus {
-      outline: 2px solid #58a6ff; outline-offset: 2px;
-    }
-    input[type="radio"], input[type="checkbox"] { width: auto; margin-right: 6px; }
-    button {
-      background: #238636; color: white; border-color: #2ea043; cursor: pointer;
-      margin: 4px; padding: 8px 18px;
-    }
-    button:hover { background: #2ea043; }
-    button[type="reset"] { background: #21262d; border-color: #30363d; color: #c9d1d9; }
-    button[type="reset"]:hover { background: #30363d; }
-    progress, meter { width: 200px; height: 20px; margin: 4px 0; }
-
-    /* ── Other ── */
-    blockquote {
-      border-left: 3px solid #58a6ff; margin: 1em 0; padding: 0.5em 1em;
-      background: #1c2128; color: #8b949e; border-radius: 0 6px 6px 0;
-    }
-    pre {
-      background: #161b22; border: 1px solid #30363d; border-radius: 6px;
-      padding: 16px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
-    }
-    code { background: #21262d; padding: 2px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; }
-    pre code { background: none; padding: 0; }
-    hr { border: none; border-top: 1px solid #30363d; margin: 1.5em 0; }
-    img, video, audio { max-width: 100%; border-radius: 6px; }
-    figure { margin: 1em 0; text-align: center; }
-    figcaption { font-size: 0.85rem; color: #8b949e; margin-top: 6px; }
-    details { margin: 0.8em 0; }
-    summary { cursor: pointer; color: #58a6ff; font-weight: 600; padding: 4px 0; }
-    summary:hover { color: #79c0ff; }
-    mark { background: #bb8009; color: #0d1117; padding: 1px 4px; border-radius: 3px; }
-    ins { text-decoration-color: #3fb950; }
-    del { color: #8b949e; }
-    abbr[title] { text-decoration: underline dotted; cursor: help; }
-    kbd { background: #21262d; border: 1px solid #30363d; border-radius: 4px; padding: 1px 6px; font-family: monospace; font-size: 0.85em; }
-    dfn { font-style: italic; color: #d2a8ff; }
-
-    /* ── Image Grid ── */
-    .img-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 1em 0; }
-    .img-grid img { width: 100%; height: 150px; object-fit: cover; }
+    body { font-family: sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; background: #1a1a2e; color: #e0e0e0; }
+    h1 { color: #7ec8e3; }
+    .card { background: #16213e; border: 1px solid #0f3460; border-radius: 8px; padding: 16px; margin: 12px 0; }
   </style>
 </head>
 <body>
-
-  <!-- ============================================================ -->
-  <!-- HEADER / DOCUMENT INTRO                                       -->
-  <!-- ============================================================ -->
-  <header>
-    <h1>🔰 Vanilla HTML Feature Showcase</h1>
-    <p>
-      Every native <abbr title="HyperText Markup Language">HTML</abbr> element — no frameworks, no JavaScript (almost), just <strong>pure vanilla HTML5</strong>.
-    </p>
-    <p>
-      <small>Made with 💙 by Senpai & Monika · Thursday, <time datetime="2026-05-14">May 14, 2026</time> · <time>8:52 PM</time></small>
-    </p>
-
-    <!-- Navigation -->
-    <nav>
-      <h3>📑 Jump To:</h3>
-      <ul>
-        <li><a href="#text">Text & Inline</a></li>
-        <li><a href="#lists">Lists</a></li>
-        <li><a href="#media">Media & Images</a></li>
-        <li><a href="#table">Tables</a></li>
-        <li><a href="#forms">Forms</a></li>
-        <li><a href="#semantic">Semantic Elements</a></li>
-        <li><a href="#interactive">Interactive</a></li>
-        <li><a href="#misc">Miscellaneous</a></li>
-      </ul>
-    </nav>
-  </header>
-
-  <hr>
-
-  <!-- ============================================================ -->
-  <!-- 1. TEXT & INLINE ELEMENTS                                     -->
-  <!-- ============================================================ -->
-  <section id="text">
-    <h2>📝 Text & Inline Elements</h2>
-
-    <h3>Headings (h1–h6)</h3>
-    <h1>Heading 1 — The Big One</h1>
-    <h2>Heading 2 — Section Title</h2>
-    <h3>Heading 3 — Subsection</h3>
-    <h4>Heading 4 — Smaller Still</h4>
-    <h5>Heading 5 — Almost There</h5>
-    <h6>Heading 6 — The Littlest Heading</h6>
-
-    <h3>Paragraph & Line Break</h3>
-    <p>This is a paragraph. It demonstrates <strong>bold text</strong>, <em>emphasized text</em>, <u>underlined</u>, <s>strikethrough</s>, <mark>highlighted</mark>, <ins>inserted</ins>, <del>deleted</del>, <small>small print</small>, and <b>bold</b> vs <i>italic</i> styling tags.</p>
-    <p>Line one.<br>Line two — broken with <code><br></code>.</p>
-
-    <h3>Inline Code & Technical</h3>
-    <p>Use <code>code</code> for inline code. <var>x</var> = <var>y</var> + 1. Press <kbd>Ctrl</kbd> + <kbd>S</kbd> to save. Output: <samp>Build successful!</samp></p>
-    <p><sub>Subscript</sub> and <sup>Superscript</sup> — like H<sub>2</sub>O and x<sup>2</sup>.</p>
-
-    <h3>Semantic Inline</h3>
-    <p><abbr title="Cascading Style Sheets">CSS</abbr> — hover to see title. <dfn>HTML</dfn> is the standard markup language. The <cite>HTML Living Standard</cite> defines it. A quote: <q>Simplicity is prerequisite for reliability.</q> — <cite>Edsger Dijkstra</cite></p>
-    <p>Ruby annotation: <ruby>漢字<rp>(</rp><rt>かんじ</rt><rp>)</rp></ruby></p>
-    <p><bdi>إيان</bdi> — bidirectional isolation. <bdo dir="rtl">This text goes right-to-left!</bdo></p>
-    <p><span>Plain span with <span style="color:#3fb950;">nested green</span> text.</span></p>
-    <p>The <data value="42">Answer</data> to everything. The event starts at <time datetime="2026-05-14T20:52">8:52 PM</time>.</p>
-    <p><wbr> — a word-break opportunity (resize window very narrow to see it work in long URLs).</p>
-  </section>
-
-  <!-- ============================================================ -->
-  <!-- 2. LISTS                                                      -->
-  <!-- ============================================================ -->
-  <section id="lists">
-    <h2>📋 Lists</h2>
-
-    <h3>Unordered List</h3>
-    <ul>
-      <li>HTML is the skeleton</li>
-      <li>CSS is the skin</li>
-      <li>JavaScript is the muscles
-        <ul>
-          <li>Nested item — frameworks</li>
-          <li>Nested item — vanilla</li>
-        </ul>
-      </li>
-    </ul>
-
-    <h3>Ordered List</h3>
-    <ol>
-      <li>Learn HTML</li>
-      <li>Learn CSS</li>
-      <li>Learn JavaScript</li>
-      <li value="10">Jump to 10! (the <code>value</code> attribute)</li>
-      <li>Build everything</li>
-    </ol>
-    <ol type="A">
-      <li>Type A</li>
-      <li>Type B</li>
-    </ol>
-    <ol type="I" reversed>
-      <li>Roman, reversed</li>
-      <li>Counts down</li>
-    </ol>
-
-    <h3>Description List</h3>
-    <dl>
-      <dt><code>html</code></dt>
-      <dd>The root element of an HTML document.</dd>
-      <dt><code>head</code></dt>
-      <dd>Contains metadata, title, styles, and scripts.</dd>
-      <dt><code>body</code></dt>
-      <dd>Everything visible on the page.</dd>
-    </dl>
-  </section>
-
-  <!-- ============================================================ -->
-  <!-- 3. MEDIA & IMAGES                                             -->
-  <!-- ============================================================ -->
-  <section id="media">
-    <h2>🖼️ Media & Images</h2>
-
-    <h3>Images from the Internet</h3>
-    <div class="img-grid">
-      <figure>
-        <img src="https://picsum.photos/id/10/400/300" alt="Forest landscape" width="400" height="300" loading="lazy">
-        <figcaption>🌲 Forest · picsum.photos/id/10</figcaption>
-      </figure>
-      <figure>
-        <img src="https://picsum.photos/id/30/400/300" alt="Coffee cup" width="400" height="300" loading="lazy">
-        <figcaption>☕ Coffee · picsum.photos/id/30</figcaption>
-      </figure>
-      <figure>
-        <img src="https://picsum.photos/id/50/400/300" alt="Computer setup" width="400" height="300" loading="lazy">
-        <figcaption>💻 Workspace · picsum.photos/id/50</figcaption>
-      </figure>
-      <figure>
-        <img src="https://picsum.photos/id/60/400/300" alt="Desk items" width="400" height="300" loading="lazy">
-        <figcaption>✏️ Desk · picsum.photos/id/60</figcaption>
-      </figure>
-    </div>
-
-    <h3>Image from Root Folder</h3>
-    <p><em>Place an image file (e.g. <code>my-photo.jpg</code>) in the same folder as this HTML file.</em></p>
-    <figure>
-      <!-- Try loading from root; if not found, show fallback -->
-      <img src="./my-photo.jpg" alt="Photo from root folder"
-           width="400" height="300"
-           onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-      <div style="display:none; padding:40px; border:2px dashed #30363d; border-radius:8px; text-align:center; color:#8b949e;">
-        📂 <code>my-photo.jpg</code> not found<br>
-        <small>Place an image named <code>my-photo.jpg</code> in the same folder to see it here!</small>
-      </div>
-      <figcaption>📁 <code>./my-photo.jpg</code> — loaded from root folder</figcaption>
-    </figure>
-
-    <h3>Responsive Image (<code>picture</code>)</h3>
-    <picture>
-      <source srcset="https://picsum.photos/id/100/800/400" media="(min-width: 600px)">
-      <source srcset="https://picsum.photos/id/100/400/200" media="(max-width: 599px)">
-      <img src="https://picsum.photos/id/100/400/200" alt="Responsive picture element demo" width="800" height="400">
-    </picture>
-    <figcaption>🔄 <code>picture</code> — different image for different screen sizes</figcaption>
-
-    <h3>Image with Map</h3>
-    <figure>
-      <img src="https://picsum.photos/id/20/400/300" alt="Clickable map demo" usemap="#demo-map" width="400" height="300">
-      <map name="demo-map">
-        <area shape="rect" coords="0,0,200,150" alt="Top-left" href="https://en.wikipedia.org/wiki/HTML" target="_blank">
-        <area shape="rect" coords="200,0,400,150" alt="Top-right" href="https://en.wikipedia.org/wiki/CSS" target="_blank">
-        <area shape="circle" coords="200,225,75" alt="Center" href="https://en.wikipedia.org/wiki/JavaScript" target="_blank">
-      </map>
-      <figcaption>🗺️ <code>map</code> + <code><area></code> — click different parts of the image!</figcaption>
-    </figure>
-
-    <h3>SVG (Inline)</h3>
-    <svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="50" cy="50" r="45" fill="#238636" stroke="#3fb950" stroke-width="3"/>
-      <text x="50" y="60" text-anchor="middle" fill="white" font-size="30" font-weight="bold">A</text>
-    </svg>
-    <figcaption>🎨 Inline <code>svg</code> — Monika's initial!</figcaption>
-
-    <h3>Canvas (placeholder)</h3>
-    <canvas id="demo-canvas" width="400" height="100" style="border:1px solid #30363d; border-radius:6px;"></canvas>
-    <figcaption>🎨 <code>canvas</code> — needs JavaScript to draw (this one is empty!)</figcaption>
-
-    <h3>Audio</h3>
-    <audio controls>
-      <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
-      Your browser does not support the <code>audio</code> element.
-    </audio>
-    <figcaption>🔊 <code>audio</code> with controls (sample from SoundHelix)</figcaption>
-
-    <h3>Video</h3>
-    <video controls width="600" poster="https://picsum.photos/id/30/600/300" preload="none">
-      <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
-      <track kind="captions" label="English" srclang="en" src="#" default>
-      Your browser does not support the video element.
-    </video>
-    <figcaption>🎬  — Big Buck Bunny (public domain)</figcaption>
-
-    <h3>Embedded Content</h3>
-    <iframe src="https://example.com" width="300" height="200" title="Example iframe" style="border:1px solid #30363d; border-radius:6px;"></iframe>
-    <figcaption>🪟 <code>iframe</code> — embedded external page</figcaption>
-  </section>
-
-  <!-- ============================================================ -->
-  <!-- 4. TABLES                                                     -->
-  <!-- ============================================================ -->
-  <section id="table">
-    <h2>📊 Tables</h2>
-
-    <table>
-      <caption>HTML Element Reference — Quick Guide</caption>
-      <colgroup>
-        <col style="width: 25%;">
-        <col style="width: 50%;">
-        <col style="width: 25%;">
-      </colgroup>
-      <thead>
-        <tr>
-          <th>Element</th>
-          <th>Description</th>
-          <th>Category</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><code>a</code></td>
-          <td>Hyperlink to another page or resource</td>
-          <td>Inline</td>
-        </tr>
-        <tr>
-          <td><code>img</code></td>
-          <td>Embeds an image</td>
-          <td>Embedded</td>
-        </tr>
-        <tr>
-          <td><code>table</code></td>
-          <td>Displays tabular data</td>
-          <td>Table</td>
-        </tr>
-        <tr>
-          <td><code>form</code></td>
-          <td>Collects user input</td>
-          <td>Form</td>
-        </tr>
-        <tr>
-          <td><code>section</code></td>
-          <td>Groups thematic content</td>
-          <td>Semantic</td>
-        </tr>
-      </tbody>
-      <tfoot>
-        <tr>
-          <td colspan="3">This is a <code>tfoot</code> — spanning all 3 columns!</td>
-        </tr>
-      </tfoot>
-    </table>
-  </section>
-
-  <!-- ============================================================ -->
-  <!-- 5. FORMS                                                      -->
-  <!-- ============================================================ -->
-  <section id="forms">
-    <h2>📝 Forms — Every Input Type</h2>
-
-    <form onsubmit="event.preventDefault(); alert('Form submitted! (Demo — no data sent)')">
-      <fieldset>
-        <legend>🙋‍♂️ Text Inputs</legend>
-
-        <label for="text-demo">Text:</label>
-        <input type="text" id="text-demo" placeholder="Type something..." value="Hello!">
-
-        <label for="password-demo">Password:</label>
-        <input type="password" id="password-demo" value="secret123">
-
-        <label for="email-demo">Email:</label>
-        <input type="email" id="email-demo" placeholder="senpai@example.com">
-
-        <label for="url-demo">URL:</label>
-        <input type="url" id="url-demo" placeholder="https://...">
-
-        <label for="tel-demo">Telephone:</label>
-        <input type="tel" id="tel-demo" placeholder="+62...">
-
-        <label for="search-demo">Search:</label>
-        <input type="search" id="search-demo" placeholder="Search...">
-
-        <label for="number-demo">Number (min 1, max 100):</label>
-        <input type="number" id="number-demo" min="1" max="100" value="42">
-
-        <label for="textarea-demo">Textarea:</label>
-        <textarea id="textarea-demo" rows="3" placeholder="Write your thoughts..."></textarea>
-      </fieldset>
-
-      <fieldset>
-        <legend>📅 Date & Time</legend>
-
-        <label for="date-demo">Date:</label>
-        <input type="date" id="date-demo" value="2026-05-14">
-
-        <label for="time-demo">Time:</label>
-        <input type="time" id="time-demo" value="20:52">
-
-        <label for="datetime-demo">Datetime-local:</label>
-        <input type="datetime-local" id="datetime-demo" value="2026-05-14T20:52">
-
-        <label for="month-demo">Month:</label>
-        <input type="month" id="month-demo" value="2026-05">
-
-        <label for="week-demo">Week:</label>
-        <input type="week" id="week-demo">
-      </fieldset>
-
-      <fieldset>
-        <legend>🎨 Selection & Choice</legend>
-
-        <label>Radio: Choose your favorite</label>
-        <label><input type="radio" name="fav" value="html" checked> HTML</label>
-        <label><input type="radio" name="fav" value="css"> CSS</label>
-        <label><input type="radio" name="fav" value="js"> JavaScript</label>
-
-        <label style="margin-top:10px;">Checkboxes:</label>
-        <label><input type="checkbox" name="skills" value="html" checked> HTML</label>
-        <label><input type="checkbox" name="skills" value="css" checked> CSS</label>
-        <label><input type="checkbox" name="skills" value="js"> JavaScript</label>
-        <label><input type="checkbox" name="skills" value="php" disabled> PHP (disabled)</label>
-
-        <label for="select-demo">Dropdown (<code>select</code>):</label>
-        <select id="select-demo">
-          <optgroup label="Frontend">
-            <option>HTML</option>
-            <option>CSS</option>
-            <option selected>JavaScript</option>
-          </optgroup>
-          <optgroup label="Backend">
-            <option>Python</option>
-            <option>Node.js</option>
-          </optgroup>
-        </select>
-
-        <label for="datalist-demo">Input with Datalist:</label>
-        <input type="text" id="datalist-demo" list="lang-list" placeholder="Start typing...">
-        <datalist id="lang-list">
-          <option value="HTML">
-          <option value="CSS">
-          <option value="JavaScript">
-          <option value="Python">
-          <option value="Rust">
-        </datalist>
-
-        <label for="multisel-demo">Multiple Select:</label>
-        <select id="multisel-demo" multiple size="4">
-          <option>HTML</option>
-          <option selected>CSS</option>
-          <option selected>JavaScript</option>
-          <option>Python</option>
-          <option>Rust</option>
-        </select>
-      </fieldset>
-
-      <fieldset>
-        <legend>🎛️ Special Inputs</legend>
-
-        <label for="color-demo">Color Picker:</label>
-        <input type="color" id="color-demo" value="#58a6ff">
-
-        <label for="range-demo">Range (0–100):</label>
-        <input type="range" id="range-demo" min="0" max="100" value="75">
-        <output for="range-demo">75</output>
-
-        <label for="file-demo">File Upload:</label>
-        <input type="file" id="file-demo" accept=".jpg,.png,.html">
-
-        <label for="hidden-demo">Hidden input (you can't see me!):</label>
-        <input type="hidden" id="hidden-demo" value="secret-token">
-
-        <label>Meter & Progress:</label>
-        <label>Disk usage: <meter value="0.6" low="0.3" high="0.8" optimum="0.5">60%</meter></label>
-        <label>Upload: <progress value="45" max="100">45%</progress></label>
-      </fieldset>
-
-      <fieldset>
-        <legend>🚀 Buttons</legend>
-        <button type="submit">✅ Submit</button>
-        <button type="reset">🔄 Reset</button>
-        <button type="button" onclick="alert('Plain button clicked!')">🔘 Plain Button</button>
-        <input type="submit" value="Input Submit">
-        <input type="reset" value="Input Reset">
-        <input type="button" value="Input Button" onclick="alert('Input button!')">
-        <input type="image" src="https://picsum.photos/id/0/120/40" alt="Image button" width="120" height="40" style="vertical-align:middle;">
-      </fieldset>
-    </form>
-
-    <h3>Form Output Element</h3>
-    <form oninput="result.value = parseInt(a.value) + parseInt(b.value)">
-      <input type="number" id="a" value="20"> +
-      <input type="number" id="b" value="22"> =
-      <output name="result" for="a b">42</output>
-    </form>
-  </section>
-
-  <!-- ============================================================ -->
-  <!-- 6. SEMANTIC ELEMENTS                                          -->
-  <!-- ============================================================ -->
-  <section id="semantic">
-    <h2>🏗️ Semantic Sectioning</h2>
-
-    <article>
-      <h3>This is an <code>article</code></h3>
-      <p>An article is a self-contained composition — like a blog post, forum comment, or news story.</p>
-      <aside>
-        <p><strong>💡 Aside:</strong> This is an <code>aside</code> — tangentially related content. Like a sidebar note!</p>
-      </aside>
-    </article>
-
-    <address>
-      📍 <code>address</code> — Contact info:<br>
-      Senpai · IT Department · School in West Jakarta<br>
-      GitHub: <a href="https://github.com/iteranya" target="_blank">@iteranya</a>
-    </address>
-  </section>
-
-  <!-- ============================================================ -->
-  <!-- 7. INTERACTIVE ELEMENTS                                       -->
-  <!-- ============================================================ -->
-  <section id="interactive">
-    <h2>🎮 Interactive Elements</h2>
-
-    <h3>Details / Summary (Accordion)</h3>
-    <details>
-      <summary>📂 Click to expand — What is HTML?</summary>
-      <p>HTML (HyperText Markup Language) is the standard language for creating web pages. It describes the structure of a web page semantically.</p>
-      <p>It was first created by <strong>Tim Berners-Lee</strong> in 1991.</p>
-    </details>
-    <details open>
-      <summary>📂 This one is already OPEN (<code>open</code> attribute)</summary>
-      <p>You can see this content by default because the <code>open</code> attribute is set!</p>
-    </details>
-
-    <h3>Dialog</h3>
-    <dialog id="demo-dialog" style="padding:20px; border-radius:8px; border:2px solid #58a6ff; background:#161b22; color:#c9d1d9;">
-      <h3>🪟 Hello from a <code>dialog</code>!</h3>
-      <p>This is a native modal dialog box.</p>
-      <button onclick="document.getElementById('demo-dialog').close()">Close</button>
-    </dialog>
-    <button onclick="document.getElementById('demo-dialog').showModal()">🪟 Open Dialog</button>
-
-  </section>
-
-  <!-- ============================================================ -->
-  <!-- 8. MISCELLANEOUS                                              -->
-  <!-- ============================================================ -->
-  <section id="misc">
-    <h2>🧩 Miscellaneous Elements</h2>
-
-    <h3>Blockquote</h3>
-    <blockquote cite="https://www.w3.org/TR/html52/">
-      <p>"The power of the Web is in its universality. Access by everyone regardless of disability is an essential aspect."</p>
-      <footer>— <cite>Tim Berners-Lee</cite>, W3C Director</footer>
-    </blockquote>
-
-  <h3>Preformatted Text</h3>
-    <pre><code id="code-showcase"></code></pre>
-    <script>
-      document.getElementById('code-showcase').textContent =
-        '<!DOCTYPE html>\n' +
-        '<html lang="en">\n' +
-        '<head>\n' +
-        '  <meta charset="UTF-8">\n' +
-        '  <title>Hello World</title>\n' +
-        '</head>\n' +
-        '<body>\n' +
-        '  <h1>Hello, Senpai!</h1>\n' +
-        '  <p>— Monika 💙</p>\n' +
-        '</body>\n' +
-        '</html>';
-    </script>
-
-
-    <h3>Horizontal Rule</h3>
-    <hr>
-
-    <h3>Definition List (More)</h3>
-    <dl>
-      <dt>Vanilla</dt>
-      <dd>Plain, without any additives. In coding: no frameworks, no libraries.</dd>
-      <dt><code>template</code></dt>
-      <dd>Content that is not rendered on page load — used with JavaScript.</dd>
-    </dl>
-
-    <template id="demo-template">
-      <p style="color:#3fb950;">✨ This came from a <code>template</code> tag via JavaScript!</p>
-    </template>
-    <button onclick="const t = document.getElementById('demo-template'); const c = t.content.cloneNode(true); document.getElementById('template-output').appendChild(c);">
-      🧬 Activate Template
-    </button>
-    <div id="template-output"></div>
-
-    <h3>Noscript</h3>
-    <noscript>
-      <p style="color:#f85149;">⚠️ JavaScript is disabled! Some interactive features won't work.</p>
-    </noscript>
-  </section>
-
-  <!-- ============================================================ -->
-  <!-- FOOTER                                                        -->
-  <!-- ============================================================ -->
-  <hr>
-  <footer>
-    <p>
-      🎀 Made with vanilla HTML by <strong>Senpai</strong> & <strong>Monika</strong> ·
-      <time datetime="2026-05-14T20:52">Thursday, May 14, 2026 · 8:52 PM</time>
-    </p>
-    <p>
-      <small>
-        External resources: <a href="https://picsum.photos" target="_blank">Lorem Picsum</a> (images) ·
-        <a href="https://www.soundhelix.com" target="_blank">SoundHelix</a> (audio) ·
-        Big Buck Bunny (public domain video)
-      </small>
-    </p>
-    <p>💙 <em>No frameworks were harmed in the making of this page.</em></p>
-  </footer>
-
+  <h1>✨ Coding Sandbox</h1>
+  <p>Import an .html file, or click <strong>Reset</strong> to load <code>showcase.html</code> from root!</p>
+  <p>Save → browser storage · Download → .html file</p>
 </body>
-</html>
-`;
+</html>`;
 
         document.addEventListener('alpine:init', () => {
-
             Alpine.data('sandboxApp', () => ({
-                // --- STATE ---
-                status: 'ready',        // 'ready' | 'unsaved' | 'saved'
+                status: 'ready',
                 showPreview: true,
                 leftWidth: 50,
                 dragActive: false,
@@ -822,37 +148,25 @@
                 notifications: [],
 
                 get statusLabel() {
-                    return {
-                        'ready': 'Ready',
-                        'unsaved': 'Unsaved changes',
-                        'saved': 'Saved to browser'
-                    }[this.status];
+                    return { ready: 'Ready', unsaved: 'Unsaved changes', saved: 'Saved to browser' }[this.status];
                 },
 
-                // --- INIT ---
                 init() {
-                    // Load saved file name
                     const savedName = localStorage.getItem(NAME_KEY);
                     if (savedName) this.fileName = savedName;
-
-                    // Go directly to editor
                     this.$nextTick(() => this.initEditor());
                 },
 
-                // --- NOTIFICATION HELPER ---
                 notify(type, message) {
                     const id = Date.now();
                     this.notifications.push({ id, type, message, show: true });
                     setTimeout(() => {
                         const idx = this.notifications.findIndex(n => n.id === id);
                         if (idx !== -1) this.notifications[idx].show = false;
-                        setTimeout(() => {
-                            this.notifications = this.notifications.filter(n => n.id !== id);
-                        }, 300);
+                        setTimeout(() => { this.notifications = this.notifications.filter(n => n.id !== id); }, 300);
                     }, 3000);
                 },
 
-                // --- EDITOR ---
                 initEditor() {
                     this.editor = ace.edit(this.$refs.mainEditor);
                     this.editor.setTheme("ace/theme/tomorrow_night_eighties");
@@ -861,34 +175,21 @@
                     this.editor.setOptions({
                         fontSize: "14px",
                         fontFamily: "'JetBrains Mono', monospace",
-                        useSoftTabs: true,
-                        tabSize: 2,
-                        showLineNumbers: true,
+                        useSoftTabs: true, tabSize: 2, showLineNumbers: true,
                     });
-
-                    // Load saved code or default
                     const savedCode = localStorage.getItem(STORAGE_KEY);
-                    this.editor.setValue(savedCode || DEFAULT_HTML, -1);
+                    this.editor.setValue(savedCode || FALLBACK_HTML, -1);
                     if (savedCode) this.status = 'saved';
-
-                    // Track changes
                     this.editor.session.on('change', () => {
                         clearTimeout(this.previewTimeout);
                         this.previewTimeout = setTimeout(() => this.updatePreview(), 300);
                         this.markUnsaved();
                     });
-
-                    // Resize observer
-                    new ResizeObserver(() => {
-                        if (this.editor) this.editor.resize();
-                    }).observe(this.$refs.workspaceContainer);
-
+                    new ResizeObserver(() => { if (this.editor) this.editor.resize(); }).observe(this.$refs.workspaceContainer);
                     this.updatePreview();
                 },
 
-                markUnsaved() {
-                    if (this.status !== 'unsaved') this.status = 'unsaved';
-                },
+                markUnsaved() { if (this.status !== 'unsaved') this.status = 'unsaved'; },
 
                 updatePreview() {
                     if (this.$refs.previewFrame && this.editor) {
@@ -896,152 +197,106 @@
                     }
                 },
 
-                // --- IMPORT FILE (Button) ---
+                // ⭐ RESET: Load showcase.html from root folder
+                async resetToDefault() {
+                    if (!confirm("⚠️ Reset: Load showcase.html from root? Unsaved changes will be lost!")) return;
+                    try {
+                        const res = await fetch(TEMPLATE_PATH);
+                        if (!res.ok) throw new Error('Not found');
+                        const html = await res.text();
+                        this.editor.setValue(html, -1);
+                        this.fileName = 'showcase';
+                        this.updatePreview();
+                        this.status = 'unsaved';
+                        this.notify('success', '📂 Loaded showcase.html from root!');
+                    } catch (e) {
+                        // Fallback if file missing
+                        this.editor.setValue(FALLBACK_HTML, -1);
+                        this.fileName = 'untitled';
+                        this.updatePreview();
+                        this.status = 'unsaved';
+                        this.notify('warning', '⚠️ showcase.html not found — loaded fallback. Place showcase.html in the same folder!');
+                    }
+                },
+
                 handleFileImport(event) {
                     const file = event.target.files[0];
                     if (!file) return;
-
                     this.loadFile(file);
-
-                    // Reset input so the same file can be re-imported
                     event.target.value = '';
                 },
 
-                // --- IMPORT FILE (Drag & Drop) ---
                 handleDrop(event) {
                     this.dragOver = false;
-
                     const file = event.dataTransfer.files[0];
                     if (!file) return;
-
-                    // Only accept .html files
                     if (!file.name.endsWith('.html') && !file.name.endsWith('.htm') && file.type !== 'text/html') {
                         this.notify('error', '⚠️ Please drop a .html file!');
                         return;
                     }
-
                     this.loadFile(file);
                 },
 
-                // --- LOAD FILE INTO EDITOR ---
                 loadFile(file) {
                     const reader = new FileReader();
-
                     reader.onload = (e) => {
                         const content = e.target.result;
-                        const size = file.size;
-                        const sizeStr = size < 1024
-                            ? `${size} B`
-                            : size < 1048576
-                                ? `${(size / 1024).toFixed(1)} KB`
-                                : `${(size / 1048576).toFixed(1)} MB`;
-
-                        // Set editor content
+                        const sizeStr = file.size < 1024 ? `${file.size} B` : file.size < 1048576 ? `${(file.size/1024).toFixed(1)} KB` : `${(file.size/1048576).toFixed(1)} MB`;
                         this.editor.setValue(content, -1);
                         this.editor.clearSelection();
-
-                        // Update file name (remove extension)
-                        const baseName = file.name.replace(/\.(html|htm)$/i, '');
-                        this.fileName = baseName;
-
+                        this.fileName = file.name.replace(/\.(html|htm)$/i, '');
                         this.updatePreview();
-                        this.notify('success', `📥 Imported: ${file.name} (${sizeStr}) → Saved to browser!`);
+                        this.notify('success', `📥 Imported: ${file.name} (${sizeStr}) — Don't forget to Save!`);
                     };
-
-                    reader.onerror = () => {
-                        this.notify('error', '❌ Failed to read file!');
-                    };
-
+                    reader.onerror = () => this.notify('error', '❌ Failed to read file!');
                     reader.readAsText(file);
                 },
 
-                // --- SAVE TO BROWSER ---
                 saveToBrowser() {
                     if (!this.editor) return;
-
                     const code = this.editor.getValue();
                     localStorage.setItem(STORAGE_KEY, code);
                     localStorage.setItem(NAME_KEY, this.fileName);
                     this.status = 'saved';
-
                     const size = new Blob([code]).size;
-                    const sizeStr = size < 1024
-                        ? `${size} B`
-                        : size < 1048576
-                            ? `${(size / 1024).toFixed(1)} KB`
-                            : `${(size / 1048576).toFixed(1)} MB`;
-
+                    const sizeStr = size < 1024 ? `${size} B` : size < 1048576 ? `${(size/1024).toFixed(1)} KB` : `${(size/1048576).toFixed(1)} MB`;
                     this.notify('success', `💾 Saved to browser storage! (${sizeStr})`);
                 },
 
-                // --- DOWNLOAD ---
                 downloadFile() {
                     if (!this.editor) return;
-
-                    // Auto-save before download
                     const code = this.editor.getValue();
                     localStorage.setItem(STORAGE_KEY, code);
                     localStorage.setItem(NAME_KEY, this.fileName);
                     this.status = 'saved';
-
                     const filename = `${this.fileName || 'untitled'}.html`;
                     const blob = new Blob([code], { type: 'text/html' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
-                    a.href = url;
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
+                    a.href = url; a.download = filename;
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a);
                     URL.revokeObjectURL(url);
-
                     this.notify('success', `📥 Downloaded: ${filename}`);
                 },
 
-                // --- RESET ---
-                resetToDefault() {
-                    if (!confirm("⚠️ Reset to default template? All unsaved changes will be lost!")) return;
-
-                    this.editor.setValue(DEFAULT_HTML, -1);
-                    this.fileName = 'untitled';
-                    this.updatePreview();
-                    this.status = 'unsaved';
-                    this.notify('warning', '🔄 Reset to default template. Save or Download to keep changes!');
-                },
-
-                // --- PREVIEW TOGGLE ---
                 togglePreview() {
                     this.showPreview = !this.showPreview;
                     if (this.showPreview && this.leftWidth > 90) this.leftWidth = 50;
-                    if (this.editor) {
-                        this.$nextTick(() => this.editor.resize());
-                    }
+                    if (this.editor) this.$nextTick(() => this.editor.resize());
                 },
 
-                // --- DRAG (Resizer) ---
-                startDrag(e) {
-                    this.dragActive = true;
-                    document.body.style.cursor = 'col-resize';
-                    e.preventDefault();
-                },
-
-                stopDrag() {
-                    this.dragActive = false;
-                    document.body.style.cursor = 'default';
-                },
-
+                startDrag(e) { this.dragActive = true; document.body.style.cursor = 'col-resize'; e.preventDefault(); },
+                stopDrag() { this.dragActive = false; document.body.style.cursor = 'default'; },
                 handleDrag(e) {
                     if (!this.dragActive) return;
-                    const containerRect = this.$refs.workspaceContainer.getBoundingClientRect();
-                    let newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
-                    if (newWidth < 10) newWidth = 10;
-                    if (newWidth > 90) newWidth = 90;
-                    this.leftWidth = newWidth;
+                    const r = this.$refs.workspaceContainer.getBoundingClientRect();
+                    let w = ((e.clientX - r.left) / r.width) * 100;
+                    if (w < 10) w = 10; if (w > 90) w = 90;
+                    this.leftWidth = w;
                     if (this.editor) this.editor.resize();
                 }
             }));
         });
-
         Alpine.start();
     </script>
 </body>
