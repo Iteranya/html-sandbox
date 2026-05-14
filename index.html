@@ -21,13 +21,27 @@
         x-cloak
         @mousemove.window="handleDrag"
         @mouseup.window="stopDrag"
-        class="flex flex-col h-full w-full"
+        @dragover.prevent="dragOver = true"
+        @dragleave.prevent="dragOver = false"
+        @drop.prevent="handleDrop($event)"
+        class="flex flex-col h-full w-full relative"
     >
+
+        <!-- ========================================== -->
+        <!-- DRAG-AND-DROP OVERLAY                      -->
+        <!-- ========================================== -->
+        <div x-show="dragOver" x-transition.opacity.duration.150ms
+             class="absolute inset-0 z-[100] bg-blue-500/20 border-4 border-dashed border-blue-400 flex items-center justify-center pointer-events-none">
+            <div class="bg-gray-900/90 px-8 py-6 rounded-2xl shadow-2xl text-center">
+                <i class="ri-file-upload-line text-5xl text-blue-400 block mb-2"></i>
+                <span class="text-white text-lg font-bold">Drop your .html file here!</span>
+            </div>
+        </div>
 
         <!-- ========================================== -->
         <!-- TOOLBAR                                     -->
         <!-- ========================================== -->
-        <header class="h-14 bg-gray-800 border-b border-gray-700 flex items-center justify-between px-4 shrink-0">
+        <header class="h-14 bg-gray-800 border-b border-gray-700 flex items-center justify-between px-4 shrink-0 z-50">
             <!-- Left: Title & Status -->
             <div class="flex items-center gap-4">
                 <div class="font-bold text-white tracking-wide flex items-center">
@@ -40,7 +54,7 @@
                 <div class="flex items-center gap-2">
                     <input
                         x-model="fileName"
-                        @change="markUnsaved"
+                        @change="markUnsaved()"
                         class="bg-transparent text-sm text-gray-300 border-b border-transparent hover:border-gray-600 focus:border-blue-500 focus:outline-none px-1 py-0.5 w-40 transition-colors"
                         placeholder="untitled.html"
                     >
@@ -72,6 +86,13 @@
 
                 <div class="h-4 w-px bg-gray-600"></div>
 
+                <!-- Import Button -->
+                <button @click="$refs.fileInput.click()"
+                        class="px-4 py-1.5 text-sm bg-emerald-700 hover:bg-emerald-600 text-white rounded transition-colors flex items-center gap-2"
+                        title="Import HTML file">
+                    <i class="ri-file-upload-line"></i> Import
+                </button>
+
                 <!-- Reset Button -->
                 <button @click="resetToDefault"
                         class="px-4 py-1.5 text-sm bg-red-700 hover:bg-red-600 text-white rounded transition-colors flex items-center gap-2"
@@ -93,6 +114,15 @@
                     <i class="ri-download-2-line"></i> Download
                 </button>
             </div>
+
+            <!-- Hidden File Input for Import -->
+            <input
+                x-ref="fileInput"
+                type="file"
+                accept=".html,.htm,text/html"
+                class="hidden"
+                @change="handleFileImport($event)"
+            >
         </header>
 
         <!-- ========================================== -->
@@ -123,7 +153,7 @@
         <div class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
             <template x-for="note in notifications" :key="note.id">
                 <div x-show="note.show" x-transition.opacity.duration.300ms
-                    class="bg-gray-800 text-white px-4 py-3 rounded shadow-xl border-l-4 pointer-events-auto text-sm"
+                    class="bg-gray-800 text-white px-4 py-3 rounded shadow-xl border-l-4 pointer-events-auto text-sm max-w-sm"
                     :class="{
                         'border-green-500': note.type === 'success',
                         'border-red-500': note.type === 'error',
@@ -149,7 +179,7 @@
         ace.config.set('themePath', ACE_CDN);
         ace.config.set('workerPath', ACE_CDN);
 
-        // --- STORAGE KEY ---
+        // --- STORAGE KEYS ---
         const STORAGE_KEY = 'sandbox_code';
         const NAME_KEY = 'sandbox_filename';
 
@@ -205,8 +235,7 @@
 <body>
   <h1>✨ Welcome to Coding Sandbox!</h1>
   <p>Edit the HTML on the left, preview on the right.</p>
-  <p><strong>Save</strong> stores your work in the browser.<br>
-  <strong>Download</strong> gets you a .html file!</p>
+  <p><strong>Import</strong> an .html file, <strong>Save</strong> to browser, or <strong>Download</strong> your work!</p>
 
   <div class="card">
     <h2>🎨 HTML</h2>
@@ -239,6 +268,7 @@
                 showPreview: true,
                 leftWidth: 50,
                 dragActive: false,
+                dragOver: false,
                 fileName: 'untitled',
                 editor: null,
                 previewTimeout: null,
@@ -319,6 +349,70 @@
                     }
                 },
 
+                // --- IMPORT FILE (Button) ---
+                handleFileImport(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+
+                    this.loadFile(file);
+
+                    // Reset input so the same file can be re-imported
+                    event.target.value = '';
+                },
+
+                // --- IMPORT FILE (Drag & Drop) ---
+                handleDrop(event) {
+                    this.dragOver = false;
+
+                    const file = event.dataTransfer.files[0];
+                    if (!file) return;
+
+                    // Only accept .html files
+                    if (!file.name.endsWith('.html') && !file.name.endsWith('.htm') && file.type !== 'text/html') {
+                        this.notify('error', '⚠️ Please drop a .html file!');
+                        return;
+                    }
+
+                    this.loadFile(file);
+                },
+
+                // --- LOAD FILE INTO EDITOR ---
+                loadFile(file) {
+                    const reader = new FileReader();
+
+                    reader.onload = (e) => {
+                        const content = e.target.result;
+                        const size = file.size;
+                        const sizeStr = size < 1024
+                            ? `${size} B`
+                            : size < 1048576
+                                ? `${(size / 1024).toFixed(1)} KB`
+                                : `${(size / 1048576).toFixed(1)} MB`;
+
+                        // Set editor content
+                        this.editor.setValue(content, -1);
+                        this.editor.clearSelection();
+
+                        // Update file name (remove extension)
+                        const baseName = file.name.replace(/\.(html|htm)$/i, '');
+                        this.fileName = baseName;
+
+                        // Save immediately to browser
+                        localStorage.setItem(STORAGE_KEY, content);
+                        localStorage.setItem(NAME_KEY, this.fileName);
+                        this.status = 'saved';
+
+                        this.updatePreview();
+                        this.notify('success', `📥 Imported: ${file.name} (${sizeStr}) → Saved to browser!`);
+                    };
+
+                    reader.onerror = () => {
+                        this.notify('error', '❌ Failed to read file!');
+                    };
+
+                    reader.readAsText(file);
+                },
+
                 // --- SAVE TO BROWSER ---
                 saveToBrowser() {
                     if (!this.editor) return;
@@ -367,6 +461,7 @@
                     if (!confirm("⚠️ Reset to default template? All unsaved changes will be lost!")) return;
 
                     this.editor.setValue(DEFAULT_HTML, -1);
+                    this.fileName = 'untitled';
                     this.updatePreview();
                     this.status = 'unsaved';
                     this.notify('warning', '🔄 Reset to default template. Save or Download to keep changes!');
@@ -381,7 +476,7 @@
                     }
                 },
 
-                // --- DRAG ---
+                // --- DRAG (Resizer) ---
                 startDrag(e) {
                     this.dragActive = true;
                     document.body.style.cursor = 'col-resize';
