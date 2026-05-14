@@ -397,11 +397,6 @@
                         const baseName = file.name.replace(/\.(html|htm)$/i, '');
                         this.fileName = baseName;
 
-                        // Save immediately to browser
-                        localStorage.setItem(STORAGE_KEY, content);
-                        localStorage.setItem(NAME_KEY, this.fileName);
-                        this.status = 'saved';
-
                         this.updatePreview();
                         this.notify('success', `📥 Imported: ${file.name} (${sizeStr}) → Saved to browser!`);
                     };
